@@ -1,1 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invitación Mis 15 Años - Panel de Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:wght@300;400;500&family=Satisfy&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+    }
+    .font-dancing-script {
+      font-family: 'Dancing Script', cursive;
+    }
+    .font-satisfy {
+      font-family: 'Satisfy', cursive;
+    }
+    
+    /* Animations & Custom Styles */
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+    
+    @keyframes scale-up {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .animate-scale-up {
+      animation: scale-up 0.3s ease-out forwards;
+    }
 
+    @keyframes fade-in-item {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in-item {
+      animation: fade-in-item 0.4s ease-out forwards;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: rgba(221, 160, 172, 0.5);
+      border-radius: 20px;
+      border: 3px solid transparent;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@^1.9.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { GoogleGenAI } from "@google/genai";
+    import { createClient } from '@supabase/supabase-js';
+
+    // --- From constants.ts ---
+    const QUINCEANERA_NAME = "Sofía";
+    const PARTY_DATE_OBJ = new Date("2025-10-26T21:00:00");
+    const PARTY_DATE = "Sábado, 26 de Octubre de 2025";
+    const PARTY_TIME = "21:00 Hs.";
+    const PARTY_LOCATION_NAME = "Salón de Fiestas 'El Encanto'";
+    const PARTY_ADDRESS = "Avenida Siempreviva 742, Springfield";
+    const MAPS_URL = "https://maps.google.com/";
+
+    // --- From services/supabaseClient.ts ---
+    const supabaseUrl = 'https://rrrlmouxytovvhyxcqdy.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycmxtb3V4eXRvdnZoeXhjcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI2NDIxMDUsImV4cCI6MjA2ODIxODEwNX0.rLrtjX_XZbYNx0HvY3CEGUULWauQt4SoWruyHpR-GE4';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    // --- From services/geminiService.ts ---
+    // Safely initialize Gemini API for browser environment
+    const API_KEY = (typeof process !== 'undefined' && process.env.API_KEY) ? process.env.API_KEY : null;
+    let ai = null;
+    
+    if (API_KEY) {
+      try {
+        ai = new GoogleGenAI({ apiKey: API_KEY });
+      } catch (e) {
+        console.error("Failed to initialize GoogleGenAI:", e);
+      }
+    } else {
+      console.warn("Gemini API Key not found. AI features will use a fallback response.");
+    }
+
+    const getSongResponse = async (songName, guestName) => {
+      if (!ai) {
+        return "¡Gracias por tu recomendación! La agregaré a mi playlist. 🎶";
+      }
+      try {
+        const prompt = `Un invitado llamado "${guestName}" recomendó la canción "${songName}" para una fiesta de 15 años. Escribe un mensaje de agradecimiento corto, divertido y entusiasta para ${guestName}. Debe ser en español, sonar como una quinceañera feliz y tener menos de 20 palabras. Incluye un emoji musical.`;
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+          config: { thinkingConfig: { thinkingBudget: 0 } }
+        });
+        return response.text;
+      } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        return "¡Gracias por tu súper recomendación! ¡Me encanta! 💖";
+      }
+    };
+
+    // --- From utils/songUtils.ts ---
+    const toTitleCase = (str) => {
+      if (!str) return str;
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
+    const normalizeSongKey = (songName) => {
+      if (!songName) return '';
+      return songName
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, '');
+    };
+    const levenshteinDistance = (a, b) => {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+      const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+      for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+      for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          matrix[j][i] = Math.min(matrix[j][i - 1] + 1, matrix[j - 1][i] + 1, matrix[j - 1][i - 1] + cost);
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+    const processRecommendations = (data) => {
+      const fuzzyGroups = [];
+      data.forEach(rec => {
+        if (!rec.song_name || !rec.guest_name) return;
+        const currentSongKey = normalizeSongKey(rec.song_name);
+        if (!currentSongKey) return;
+        const capitalizedGuestName = toTitleCase(rec.guest_name.trim());
+        const originalName = toTitleCase(rec.song_name.trim());
+        let foundGroup = false;
+        for (const group of fuzzyGroups) {
+          const distance = levenshteinDistance(currentSongKey, group.key);
+          if (distance / Math.max(currentSongKey.length, group.key.length) < 0.20) {
+            group.originalNames.push(originalName);
+            group.guests.add(capitalizedGuestName);
+            if (currentSongKey.length > group.key.length) {
+              group.key = currentSongKey;
+            }
+            foundGroup = true;
+            break;
+          }
+        }
+        if (!foundGroup) {
+          fuzzyGroups.push({ key: currentSongKey, originalNames: [originalName], guests: new Set([capitalizedGuestName]) });
+        }
+      });
+      const processedList = fuzzyGroups.map(group => {
+        const nameCounts = new Map();
+        group.originalNames.forEach(name => nameCounts.set(name, (nameCounts.get(name) || 0) + 1));
+        let canonicalName = group.originalNames[0] || 'Canción Desconocida';
+        let maxCount = 0;
+        nameCounts.forEach((count, name) => {
+          if (count > maxCount) {
+            maxCount = count;
+            canonicalName = name;
+          } else if (count === maxCount && name.length > canonicalName.length) {
+            canonicalName = name;
+          }
+        });
+        const sortedGuests = Array.from(group.guests).sort();
+        return { key: group.key, song_name: canonicalName, count: sortedGuests.length, guests: sortedGuests };
+      });
+      return processedList.sort((a, b) => b.count - a.count);
+    };
+    
+    // --- From contexts/AuthContext.tsx ---
+    const { createContext, useState, useContext, useEffect, useCallback } = React;
+    const VALID_USERS = { 'nicki': '202515años', 'keila': '202515años' };
+    const AuthContext = createContext(null);
+    const AuthProvider = ({ children }) => {
+      const [user, setUser] = useState(() => sessionStorage.getItem('quinces_user'));
+      useEffect(() => {
+        const storedUser = sessionStorage.getItem('quinces_user');
+        if (storedUser) {
+          setUser(storedUser);
+        }
+      }, []);
+      const login = useCallback((username, pass) => {
+        const lowercasedUser = username.toLowerCase().trim();
+        if (VALID_USERS.hasOwnProperty(lowercasedUser) && VALID_USERS[lowercasedUser] === pass) {
+          const capitalizedUser = lowercasedUser.charAt(0).toUpperCase() + lowercasedUser.slice(1);
+          sessionStorage.setItem('quinces_user', capitalizedUser);
+          setUser(capitalizedUser);
+          return true;
+        }
+        return false;
+      }, []);
+      const logout = useCallback(() => {
+        sessionStorage.removeItem('quinces_user');
+        setUser(null);
+      }, []);
+      const isAuthenticated = !!user;
+      return (
+        React.createElement(AuthContext.Provider, { value: { isAuthenticated, user, login, logout } }, children)
+      );
+    };
+    const useAuth = () => {
+      const context = useContext(AuthContext);
+      if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+      }
+      return context;
+    };
+    
+    // --- From components/GuestConfirmation.tsx ---
+    const GuestConfirmation = () => {
+        const [firstName, setFirstName] = useState('');
+        const [lastName, setLastName] = useState('');
+        const [dni, setDni] = useState('');
+        const [isLoading, setIsLoading] = useState(false);
+        const [successMessage, setSuccessMessage] = useState(null);
+        const [error, setError] = useState(null);
+
+        const handleSubmit = useCallback(async (event) => {
+            event.preventDefault();
+            if (!firstName.trim() || !lastName.trim() || !dni.trim()) {
+                setError("Por favor, completa todos los campos.");
+                return;
+            }
+            setIsLoading(true);
+            setError(null);
+            setSuccessMessage(null);
+            try {
+                const { error: insertError } = await supabase
+                    .from('confirmed_guests')
+                    .insert([{ 
+                        first_name: firstName.trim(), 
+                        last_name: lastName.trim(), 
+                        dni: dni.trim() 
+                    }]);
+                if (insertError) {
+                    if (insertError.code === '23505') { 
+                         setError("Este DNI ya ha sido registrado. ¡Gracias!");
+                    } else {
+                         setError("Hubo un error al guardar tus datos. Inténtalo de nuevo.");
+                    }
+                } else {
+                    setSuccessMessage(`¡Gracias ${firstName}! El invitado ha sido guardado en la lista.`);
+                    setFirstName('');
+                    setLastName('');
+                    setDni('');
+                }
+            } catch (err) {
+                setError("Ocurrió un error inesperado. Por favor, intenta más tarde.");
+            } finally {
+                setIsLoading(false);
+            }
+        }, [firstName, lastName, dni]);
+        
+        const CheckIcon = ({ className }) => React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }));
+
+        return React.createElement("section", { className: "bg-white/60 p-6 rounded-xl shadow-lg text-center" },
+            React.createElement("h3", { className: "font-dancing-script text-4xl text-rose-400 mb-2" }, "Añadir Invitado"),
+            !successMessage ? (
+                React.createElement(React.Fragment, null,
+                    React.createElement("p", { className: "mb-6 font-light" }, "Usa este formulario para añadir invitados a la lista."),
+                    React.createElement("form", { onSubmit: handleSubmit, className: "flex flex-col gap-4 items-center justify-center w-full max-w-sm mx-auto" },
+                        React.createElement("input", { type: "text", value: firstName, onChange: (e) => { setFirstName(e.target.value); if(error) setError(null); }, placeholder: "Nombre/s", className: "w-full px-4 py-3 rounded-full border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 transition", disabled: isLoading, "aria-label": "Nombre/s" }),
+                        React.createElement("input", { type: "text", value: lastName, onChange: (e) => { setLastName(e.target.value); if(error) setError(null); }, placeholder: "Apellido/s", className: "w-full px-4 py-3 rounded-full border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 transition", disabled: isLoading, "aria-label": "Apellido/s" }),
+                        React.createElement("input", { type: "text", value: dni, onChange: (e) => { setDni(e.target.value.replace(/[^0-9]/g, '')); if(error) setError(null); }, placeholder: "DNI (sin puntos)", className: "w-full px-4 py-3 rounded-full border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 transition", disabled: isLoading, "aria-label": "DNI", inputMode: "numeric", pattern: "[0-9]*" }),
+                        React.createElement("button", { type: "submit", className: "w-full bg-rose-400 text-white font-medium px-8 py-3 rounded-full shadow-md hover:bg-rose-500 transition-colors duration-300 disabled:bg-rose-300 disabled:cursor-not-allowed flex items-center justify-center", disabled: isLoading },
+                            isLoading ? React.createElement(React.Fragment, null, React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" }, React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }), React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })), "Guardando...") : React.createElement("span", {className: "flex items-center"}, React.createElement(CheckIcon, {className: "h-6 w-6 mr-2"}), "Guardar invitado")
+                        )
+                    )
+                )
+            ) : (
+                React.createElement("div", { className: "text-center p-4 bg-rose-100 rounded-lg" },
+                    React.createElement("p", { className: "text-lg text-rose-600 font-medium" }, successMessage),
+                    React.createElement("button", { onClick: () => setSuccessMessage(null), className: "mt-4 text-sm text-rose-500 hover:underline" }, "Añadir otro invitado")
+                )
+            ),
+            error && React.createElement("p", { className: "text-red-500 mt-4" }, error)
+        );
+    };
+
+    // --- From components/ConfirmedGuestsList.tsx ---
+    const ConfirmedGuestsList = () => {
+        const [guests, setGuests] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+
+        const fetchGuests = useCallback(async () => {
+            const { data, error } = await supabase.from('confirmed_guests').select('id, first_name, last_name, has_confirmed').order('created_at', { ascending: true });
+            if (error) {
+                setError("No se pudo cargar la lista. Revisa los permisos de la base de datos.");
+                setLoading(false);
+            } else if (data) {
+                setGuests(data);
+                setLoading(false);
+            }
+        }, []);
+
+        useEffect(() => {
+            setLoading(true);
+            fetchGuests();
+            const channel = supabase.channel('confirmed_guests_realtime_v2').on('postgres_changes', { event: '*', schema: 'public', table: 'confirmed_guests' }, () => { fetchGuests(); }).subscribe();
+            return () => { supabase.removeChannel(channel); };
+        }, [fetchGuests]);
+
+        const ListIcon = ({ className }) => React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 1.5 }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" }));
+
+        return React.createElement("section", { className: "bg-white/60 p-6 rounded-xl shadow-lg text-center" },
+            React.createElement("h3", { className: "font-dancing-script text-4xl text-rose-400 mb-6 flex items-center justify-center gap-3" }, React.createElement(ListIcon, { className: "w-8 h-8" }), "Lista de Invitados"),
+            loading && React.createElement("p", { className: "text-gray-600 font-light" }, "Cargando lista..."),
+            error && React.createElement("p", { className: "text-red-500 font-light" }, error),
+            !loading && !error && (
+                guests.length > 0 ? (
+                    React.createElement("ul", { className: "text-left space-y-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar" },
+                        guests.map((guest) => (
+                            React.createElement("li", { key: guest.id, className: "p-3 bg-rose-50/70 rounded-lg shadow-sm flex items-center justify-between animate-fade-in-item" },
+                                React.createElement("span", { className: "font-medium text-[#5D504A]" }, `${guest.first_name} ${guest.last_name}`),
+                                React.createElement("div", { className: `w-5 h-5 rounded-sm shadow-inner flex-shrink-0 transition-colors duration-300 ${guest.has_confirmed ? 'bg-green-400' : 'bg-gray-300'}`, title: guest.has_confirmed ? "Asistencia Confirmada" : "Pendiente de Confirmación" })
+                            )
+                        ))
+                    )
+                ) : (
+                    React.createElement("p", { className: "text-gray-600 font-light" }, "Aún no hay invitados en la lista. ¡Añade el primero!")
+                )
+            )
+        );
+    };
+    
+    // --- From components/RecommendedSongs.tsx ---
+    const RecommendedSongs = () => {
+        const [recommendations, setRecommendations] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+        const [openDropdownKey, setOpenDropdownKey] = useState(null);
+
+        const handleToggleDropdown = (key) => setOpenDropdownKey(prevKey => (prevKey === key ? null : key));
+        const processAndSetRecommendations = useCallback((data) => setRecommendations(processRecommendations(data)), []);
+        const fetchRecommendations = useCallback(async () => {
+            setLoading(true);
+            const { data, error } = await supabase.from('song_recommendations').select('guest_name, song_name');
+            if (error) {
+                setError("No se pudo cargar la lista de canciones.");
+            } else if (data) {
+                processAndSetRecommendations(data);
+            }
+            setLoading(false);
+        }, [processAndSetRecommendations]);
+
+        useEffect(() => {
+            fetchRecommendations();
+            const channel = supabase.channel('song_recommendations_realtime').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'song_recommendations' }, () => fetchRecommendations()).subscribe();
+            return () => { supabase.removeChannel(channel); };
+        }, [fetchRecommendations]);
+
+        const ChevronDownIcon = ({ className }) => React.createElement("svg", { className, xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M19 9l-7 7-7-7" }));
+
+        return React.createElement("section", { className: "bg-white/60 p-6 rounded-xl shadow-lg text-center" },
+            React.createElement("h3", { className: "font-dancing-script text-4xl text-rose-400 mb-6" }, "Mi Lista Recomendada"),
+            loading && React.createElement("p", { className: "text-gray-600 font-light" }, "Cargando canciones..."),
+            error && React.createElement("p", { className: "text-red-500 font-light" }, error),
+            !loading && !error && (
+                recommendations.length > 0 ? (
+                    React.createElement("ul", { className: "text-left space-y-3 max-h-80 overflow-y-auto pr-2" },
+                        recommendations.map((rec, index) => (
+                            React.createElement("li", { key: rec.key, className: "p-3 bg-rose-50/70 rounded-lg shadow-sm transition-all duration-300" },
+                                React.createElement("div", { className: "flex items-center" },
+                                    React.createElement("span", { className: "flex-shrink-0 font-bold text-amber-600 w-8 text-center text-lg" }, String(index + 1).padStart(2, '0')),
+                                    React.createElement("div", { className: "ml-3 flex-1 min-w-0" },
+                                        React.createElement("p", { className: "font-semibold text-[#5D504A] truncate", title: rec.song_name }, rec.song_name),
+                                        rec.count > 1 ? (
+                                            React.createElement("button", { onClick: () => handleToggleDropdown(rec.key), className: "text-sm text-gray-500 flex items-center cursor-pointer hover:text-rose-500 transition-colors focus:outline-none" }, `Sugerida por ${rec.count} invitados`, React.createElement(ChevronDownIcon, { className: `w-4 h-4 ml-1 transition-transform ${openDropdownKey === rec.key ? 'rotate-180' : ''}` }))
+                                        ) : (
+                                            React.createElement("p", { className: "text-sm text-gray-500 truncate" }, `Sugerida por ${rec.guests[0]}`)
+                                        )
+                                    )
+                                ),
+                                rec.count > 1 && React.createElement("div", { className: `transition-all duration-300 ease-in-out overflow-hidden ${openDropdownKey === rec.key ? 'max-h-96 mt-2' : 'max-h-0'}` },
+                                    React.createElement("div", { className: "pl-11 pt-2 border-t border-rose-100/80" },
+                                        React.createElement("ul", { className: "list-disc list-inside text-sm text-gray-600 space-y-1" },
+                                            rec.guests.map((guest, idx) => React.createElement("li", { key: idx }, guest))
+                                        )
+                                    )
+                                )
+                            )
+                        ))
+                    )
+                ) : (
+                    React.createElement("p", { className: "text-gray-600 font-light" }, "Aún no hay canciones recomendadas.")
+                )
+            )
+        );
+    };
+
+    // --- From components/Header.tsx ---
+    const Header = ({ name }) => {
+        const FlowerIcon = ({ className }) => React.createElement("svg", { className, xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" }, React.createElement("path", { d: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z" }));
+        return React.createElement("header", { className: "text-center py-8 border-b-2 border-dotted border-rose-200" },
+            React.createElement("h2", { className: "font-satisfy text-5xl text-rose-400" }, "Mis 15 Años"),
+            React.createElement("h1", { className: "font-dancing-script text-8xl text-amber-500 my-4", style: { textShadow: '2px 2px 4px rgba(0,0,0,0.1)' } }, name),
+            React.createElement("div", { className: "flex justify-center items-center space-x-4 mt-4" },
+                React.createElement("div", { className: "flex-grow h-px bg-rose-200" }),
+                React.createElement(FlowerIcon, { className: "w-6 h-6 text-rose-300" }),
+                React.createElement("div", { className: "flex-grow h-px bg-rose-200" })
+            )
+        );
+    };
+
+    // --- From components/Dashboard.tsx ---
+    const Dashboard = () => {
+        const { user, logout } = useAuth();
+        return React.createElement("div", { className: "bg-[#FDF6F0] min-h-screen text-[#5D504A] antialiased py-4" },
+            React.createElement("div", { className: "fixed inset-0 bg-no-repeat bg-cover bg-top md:bg-contain md:bg-center opacity-40", style: { backgroundImage: "url('https://img.freepik.com/foto-gratis/chica-sonriente-tiro-medio-hermoso-vestido_52683-86468.jpg')" } }),
+            React.createElement("div", { className: "fixed top-4 right-4 z-20" },
+                React.createElement("button", { onClick: logout, className: "bg-rose-400/80 backdrop-blur-sm text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg hover:bg-rose-500 transition-colors duration-300", "aria-label": `Cerrar sesión como ${user}` }, `Cerrar Sesión (${user})`)
+            ),
+            React.createElement("div", { className: "relative z-10 max-w-md mx-auto p-6 space-y-8" },
+                React.createElement(Header, { name: QUINCEANERA_NAME }),
+                React.createElement(GuestConfirmation, null),
+                React.createElement(ConfirmedGuestsList, null),
+                React.createElement(RecommendedSongs, null)
+            )
+        );
+    };
+
+    // --- From components/LoginPage.tsx ---
+    const LoginPage = () => {
+        const [username, setUsername] = useState('');
+        const [password, setPassword] = useState('');
+        const [error, setError] = useState(null);
+        const [isLoading, setIsLoading] = useState(false);
+        const auth = useAuth();
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            setError(null);
+            if (!username || !password) {
+                setError('Por favor, completa todos los campos.');
+                return;
+            }
+            setIsLoading(true);
+            setTimeout(() => {
+                const success = auth.login(username, password);
+                if (!success) {
+                    setError('Usuario o contraseña incorrectos.');
+                    setIsLoading(false);
+                }
+            }, 500);
+        };
+        return React.createElement("div", { className: "bg-[#FDF6F0] min-h-screen text-[#5D504A] flex items-center justify-center p-4 antialiased" },
+            React.createElement("div", { className: "fixed inset-0 bg-no-repeat bg-cover bg-center opacity-40", style: { backgroundImage: "url('https://img.freepik.com/foto-gratis/chica-sonriente-tiro-medio-hermoso-vestido_52683-86468.jpg')" } }),
+            React.createElement("main", { className: "relative z-10 max-w-sm w-full bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl space-y-6 text-center" },
+                React.createElement("div", null,
+                    React.createElement("h1", { className: "font-satisfy text-4xl text-rose-400" }, "Panel de Control"),
+                    React.createElement("p", { className: "font-dancing-script text-6xl text-amber-500", style: { textShadow: '2px 2px 4px rgba(0,0,0,0.1)' } }, QUINCEANERA_NAME)
+                ),
+                React.createElement("form", { onSubmit: handleSubmit, className: "space-y-4" },
+                    React.createElement("input", { type: "text", value: username, onChange: (e) => setUsername(e.target.value), placeholder: "Usuario", className: "w-full px-4 py-3 rounded-full border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 transition", disabled: isLoading, "aria-label": "Usuario", autoComplete: "username" }),
+                    React.createElement("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), placeholder: "Contraseña", className: "w-full px-4 py-3 rounded-full border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 transition", disabled: isLoading, "aria-label": "Contraseña", autoComplete: "current-password" }),
+                    React.createElement("button", { type: "submit", className: "w-full bg-rose-400 text-white font-medium px-8 py-3 rounded-full shadow-md hover:bg-rose-500 transition-colors duration-300 disabled:bg-rose-300 disabled:cursor-not-allowed flex items-center justify-center", disabled: isLoading },
+                        isLoading ? React.createElement(React.Fragment, null, React.createElement("svg", { className: "animate-spin -ml-1 mr-3 h-5 w-5 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" }, React.createElement("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }), React.createElement("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })), "Ingresando...") : "Ingresar"
+                    ),
+                    error && React.createElement("p", { className: "text-red-500 pt-2 text-sm" }, error)
+                )
+            )
+        );
+    };
+
+    // --- App Component (from App.tsx) ---
+    const App = () => {
+      const { isAuthenticated } = useAuth();
+      return isAuthenticated ? React.createElement(Dashboard, null) : React.createElement(LoginPage, null);
+    };
+
+    // --- Entry Point (from index.tsx) ---
+    const rootElement = document.getElementById('root');
+    if (!rootElement) {
+      throw new Error("Could not find root element to mount to");
+    }
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      React.createElement(React.StrictMode, null,
+        React.createElement(AuthProvider, null,
+          React.createElement(App, null)
+        )
+      )
+    );
+  </script>
+</body>
+</html>
